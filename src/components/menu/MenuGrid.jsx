@@ -17,8 +17,13 @@ export default function MenuGrid() {
     return bySearch.sort((a, b) => (a.available === b.available) ? 0 : a.available ? -1 : 1);
   }, [menuItems, selectedCategory, hideUnavailable, searchQuery]);
 
+  const gridClasses =
+    viewMode === 'list'
+      ? 'grid grid-cols-1 auto-rows-fr items-stretch gap-3 px-3'
+      : 'grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 auto-rows-fr items-stretch gap-3 px-3';
+
   return (
-    <div className={`grid gap-3 px-3 ${viewMode === 'list' ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
+    <div className={gridClasses}>
       {filtered.map(item => (
         <FoodItem key={item.id} item={item} />
       ))}
