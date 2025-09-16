@@ -7,11 +7,13 @@ import { useNavigate } from 'react-router-dom';
 import Button from '../components/common/Button';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import useToast from '../hooks/useToast';
+import SuccessOverlay from '../components/common/SuccessOverlay';
 
 export default function CheckoutPage() {
   const { items, totals, clearCart } = useCart();
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -45,8 +47,11 @@ export default function CheckoutPage() {
       await submitOrderToPOS(orderData);
       localStorage.setItem('qr_last_order', JSON.stringify(orderData));
       clearCart();
-      toast('Order submitted!', 'success');
-      navigate(`/confirmation?orderId=${orderData.orderId}`);
+      setShowSuccess(true); // show animation
+      // brief delight, then go to confirmation
+      setTimeout(() => {
+        navigate(`/confirmation?orderId=${orderData.orderId}`);
+      }, 800);
     } catch (err) {
       console.error(err);
       toast('Failed to submit order. Please try again.', 'error');
@@ -62,6 +67,8 @@ export default function CheckoutPage() {
       <Button onClick={handleSubmit} disabled={loading || items.length === 0}>
         {loading ? <LoadingSpinner /> : 'Submit Order'}
       </Button>
+
+      {showSuccess && <SuccessOverlay message="Order submitted!" />}
     </div>
   );
 }
