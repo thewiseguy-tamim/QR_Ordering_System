@@ -1,127 +1,167 @@
-import { useState, useEffect } from "react";
-import useTableNumber from "../../hooks/useTableNumber";
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import Button from '../common/Button';
+import useTableNumber from '../../hooks/useTableNumber';
+import useToast from '../../hooks/useToast';
+import { useNavigate } from 'react-router-dom';
 
-export default function CustomerForm({ onSubmit, initial }) {
-  const [name, setName] = useState(initial?.name || "");
-  const [phone, setPhone] = useState(initial?.phone || "");
-  const [email, setEmail] = useState(initial?.email || "");
-  const { tableNumber, setTable } = useTableNumber();
-  const [table, setTableInput] = useState(tableNumber || "");
-  const [errors, setErrors] = useState({});
+const inputBase =
+  'w-full bg-white border border-slate-300 rounded-xl px-3 py-3 text-[15px] ' +
+  'placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
 
-  // ✅ Validation Functions
-  const validBDPhone = (value) => /^01[3-9]\d{8}$/.test(value);
-  const validEmail = (value) =>
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+const DRAFT_KEY = 'qr_customer_draft_v1';
+const REDIRECT_ONCE_KEY = 'qr_review_redirected_once';
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const newErrors = {};
-    if (!name.trim()) newErrors.name = "Name is required";
+function CustomerFormInner({ onSubmit, initial }, ref) {
+  const toast = useToast();
+  const navigate = useNavigate();
+  const { tableNumber } = useTableNumber();
 
-    if (!validBDPhone(phone))
-      newErrors.phone = "Enter a valid Bangladeshi phone (e.g. 01712345678)";
+  // Load draft from sessionStorage (session only)
+  let draft = null;
+  try { draft = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || 'null'); } catch {}
 
-    if (email.trim() && !validEmail(email))
-      newErrors.email = "Enter a valid email";
+  const [name, setName] = useState(initial?.name ?? draft?.name ?? '');
+  const [phone, setPhone] = useState(initial?.phone ?? draft?.phone ?? '');
+  const [email, setEmail] = useState(initial?.email ?? draft?.email ?? '');
+  const [table, setTable] = useState(
+    (initial?.tableNumber ?? draft?.tableNumber ?? tableNumber ?? 1)
+  );
+  const [reviewed, setReviewed] = useState(Boolean(draft?.reviewed));
 
-    if (!String(table).trim() || isNaN(Number(table)))
-      newErrors.table = "Valid table number required";
+  // Persist draft on changes
+  useEffect(() => {
+    const payload = { name, phone, email, tableNumber: Number(table), reviewed };
+    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(payload)); } catch {}
+  }, [name, phone, email, table, reviewed]);
 
-    setErrors(newErrors);
+  const validPhone = (value) => /^\+?[\d\s\-()]{7,}$/.test(value);
 
-    if (Object.keys(newErrors).length === 0) {
-      setTable(table);
-      onSubmit({
+  const validateAndGet = () => {
+    const t = Number(table);
+    const errors = [];
+    if (!name.trim()) errors.push('Name is required');
+    if (!validPhone(phone)) errors.push('Valid phone is required');
+    if (!Number.isFinite(t) || t < 1 || t > 12) errors.push('Select a table (1–12)');
+
+    if (errors.length) {
+      return { ok: false, message: errors.join('\n') };
+    }
+    return {
+      ok: true,
+      data: {
         name: name.trim(),
         phone: phone.trim(),
         email: email.trim(),
-        tableNumber: Number(table),
-      });
+        tableNumber: t
+      }
+    };
+  };
+
+  useImperativeHandle(ref, () => ({
+    validateAndGet
+  }));
+
+  const handleReview = (e) => {
+    e.preventDefault();
+    const res = validateAndGet();
+    if (!res.ok) {
+      toast(res.message, 'error');
+      return;
+    }
+    onSubmit?.(res.data);
+    setReviewed(true);
+    toast('Order reviewed', 'success');
+
+    // Redirect to cart only once per session
+    const redirected = sessionStorage.getItem(REDIRECT_ONCE_KEY) === '1';
+    if (!redirected) {
+      try { sessionStorage.setItem(REDIRECT_ONCE_KEY, '1'); } catch {}
+      navigate(`/cart?table=${res.data.tableNumber}`);
     }
   };
 
-  const baseInput =
-    "rounded-xl border border-gray-200 px-3 py-2 focus:border-brand focus:ring-2 focus:ring-brand transition w-full";
+  // If user changes any field after review, reset the reviewed state
+  const onChangeReset = (setter) => (e) => {
+    setter(e.target.value);
+    if (reviewed) setReviewed(false);
+  };
+
+  const reviewLabel = useMemo(
+    () => (reviewed ? '✓ Order reviewed' : 'Review Order'),
+    [reviewed]
+  );
+
+  const reviewBtnClass = reviewed
+    ? 'w-full bg-gradient-to-r from-emerald-600 to-green-600 text-white'
+    : undefined;
 
   return (
     <form
-      className="grid gap-5 p-4 border border-gray-200 rounded-2xl bg-white shadow-sm"
-      onSubmit={handleSubmit}
+      className="grid gap-3 p-4 border border-slate-200 rounded-2xl bg-white shadow-sm"
+      onSubmit={handleReview}
       noValidate
     >
-      {/* Section: Customer Info */}
-      <div className="grid gap-3">
-        <h2 className="text-base font-semibold text-gray-700">Customer Info</h2>
-
-        {/* Name */}
-        <div>
-          <input
-            className={`${baseInput} ${errors.name ? "border-red-400" : ""}`}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Full Name"
-            required
-          />
-          {errors.name && (
-            <p className="text-xs text-red-500 mt-1">{errors.name}</p>
-          )}
-        </div>
-
-        {/* Bangladeshi Phone */}
-        <div>
-          <input
-            className={`${baseInput} ${errors.phone ? "border-red-400" : ""}`}
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="e.g. 01712345678"
-            required
-            inputMode="numeric"
-          />
-          {errors.phone && (
-            <p className="text-xs text-red-500 mt-1">{errors.phone}</p>
-          )}
-        </div>
-
-        {/* Email */}
-        <div>
-          <input
-            className={`${baseInput} ${errors.email ? "border-red-400" : ""}`}
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com (optional)"
-          />
-          {errors.email && (
-            <p className="text-xs text-red-500 mt-1">{errors.email}</p>
-          )}
-        </div>
+      <div className="grid gap-1">
+        <label className="text-sm text-slate-600">Name</label>
+        <input
+          className={inputBase}
+          value={name}
+          onChange={onChangeReset(setName)}
+          placeholder="Your name"
+          autoComplete="name"
+          required
+        />
       </div>
 
-      {/* Section: Table */}
-      <div className="grid gap-2">
-        <h2 className="text-base font-semibold text-gray-700">Dining Info</h2>
-        <div>
-          <input
-            className={`${baseInput} ${errors.table ? "border-red-400" : ""}`}
-            value={table}
-            onChange={(e) => setTableInput(e.target.value)}
-            inputMode="numeric"
-            placeholder="Table Number"
-          />
-          {errors.table && (
-            <p className="text-xs text-red-500 mt-1">{errors.table}</p>
-          )}
-        </div>
+      <div className="grid gap-1">
+        <label className="text-sm text-slate-600">Phone</label>
+        <input
+          className={inputBase}
+          value={phone}
+          onChange={onChangeReset(setPhone)}
+          placeholder="(555) 012-3456"
+          autoComplete="tel"
+          inputMode="tel"
+          required
+        />
       </div>
 
-      {/* Submit */}
-      <button
-        className="mt-2 w-full px-4 py-3 rounded-xl bg-blue-200 text-black font-semibold shadow-lg active:scale-[0.98] hover:bg-blue-300 transition-all"
-        type="submit"
-      >
-        Review Order
-      </button>
+      <div className="grid gap-1">
+        <label className="text-sm text-slate-600">Email (optional)</label>
+        <input
+          className={inputBase}
+          type="email"
+          value={email}
+          onChange={onChangeReset(setEmail)}
+          placeholder="you@example.com"
+          autoComplete="email"
+        />
+      </div>
+
+      <div className="grid gap-1">
+        <label className="text-sm text-slate-600">Table Number</label>
+        <select
+          className={inputBase}
+          value={table}
+          onChange={(e) => {
+            setTable(Number(e.target.value));
+            if (reviewed) setReviewed(false);
+          }}
+        >
+          {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+            <option key={n} value={n}>
+              Table {n}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="pt-1" aria-live="polite">
+        <Button className={reviewBtnClass}>{reviewLabel}</Button>
+      </div>
     </form>
   );
 }
+
+const CustomerForm = forwardRef(CustomerFormInner);
+export default CustomerForm;

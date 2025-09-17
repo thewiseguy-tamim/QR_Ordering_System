@@ -31,7 +31,7 @@ export default function OrderSummary({ items, subtotal, tax, total, allowEdit = 
       </ul>
       <div className="grid gap-1 border-t border-dashed border-gray-200 pt-2">
         <div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
-        <div className="flex justify-between"><span>Tax</span><span>{formatCurrency(tax)}</span></div>
+        <div className="flex justify-between"><span>Tax (15%)</span><span>{formatCurrency(tax)}</span></div>
         <div className="flex justify-between"><strong>Total</strong><strong>{formatCurrency(total)}</strong></div>
       </div>
     </div>
