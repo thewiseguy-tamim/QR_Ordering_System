@@ -18,7 +18,7 @@ export default function SearchBar() {
         </span>
         <input
           type="search"
-          placeholder="Search"
+          placeholder="Search a food or drink"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           aria-label="Search menu"
