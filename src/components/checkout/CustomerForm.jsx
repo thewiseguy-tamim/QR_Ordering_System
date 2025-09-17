@@ -11,7 +11,7 @@ const inputBase =
 const DRAFT_KEY = 'qr_customer_draft_v1';
 const REDIRECT_ONCE_KEY = 'qr_review_redirected_once';
 
-function CustomerFormInner({ onSubmit, initial }, ref) {
+function CustomerFormInner({ onSubmit, initial, onValidityChange }, ref) {
   const toast = useToast();
   const navigate = useNavigate();
   const { tableNumber } = useTableNumber();
@@ -39,9 +39,8 @@ function CustomerFormInner({ onSubmit, initial }, ref) {
   const validateAndGet = () => {
     const t = Number(table);
     const errors = [];
-    if (!name.trim()) errors.push('Name is required');
-    if (!validPhone(phone)) errors.push('Valid phone is required');
-    if (!Number.isFinite(t) || t < 1 || t > 12) errors.push('Select a table (1–12)');
+   if (!name.trim() || !validPhone(phone)) errors.push('Name and valid phone number are required');
+   if (!Number.isFinite(t) || t < 1 || t > 12) errors.push('Select a table (1–12).');
 
     if (errors.length) {
       return { ok: false, message: errors.join('\n') };
@@ -61,16 +60,35 @@ function CustomerFormInner({ onSubmit, initial }, ref) {
     validateAndGet
   }));
 
+  // Notify parent about validity so it can enable/disable the submit button
+  useEffect(() => {
+    onValidityChange?.(validateAndGet().ok);
+  }, [name, phone, email, table]);
+
+  // Local helper: animated toast content using your existing toast API
+  const showAnimatedToast = (message, type = 'info', ttl = 3000) => {
+    const content = (
+      <div className="qr-toast-anim">
+        <div className="whitespace-pre-line">{message}</div>
+        <div className="qr-toast-progress mt-2">
+          <span style={{ '--ttl': `${ttl}ms` }} />
+        </div>
+      </div>
+    );
+    toast(content, type, ttl);
+  };
+
   const handleReview = (e) => {
     e.preventDefault();
     const res = validateAndGet();
     if (!res.ok) {
-      toast(res.message, 'error');
+      // Animated toast with line breaks for multiple errors
+      showAnimatedToast(res.message, 'error', 5000);
       return;
     }
     onSubmit?.(res.data);
     setReviewed(true);
-    toast('Order reviewed', 'success');
+    toast('Order reviewed', 'success', 1800);
 
     // Redirect to cart only once per session
     const redirected = sessionStorage.getItem(REDIRECT_ONCE_KEY) === '1';
@@ -126,7 +144,7 @@ function CustomerFormInner({ onSubmit, initial }, ref) {
         />
       </div>
 
-      <div className="grid gap-1">
+      {/* <div className="grid gap-1">
         <label className="text-sm text-slate-600">Email (optional)</label>
         <input
           className={inputBase}
@@ -136,7 +154,7 @@ function CustomerFormInner({ onSubmit, initial }, ref) {
           placeholder="you@example.com"
           autoComplete="email"
         />
-      </div>
+      </div> */}
 
       <div className="grid gap-1">
         <label className="text-sm text-slate-600">Table Number</label>
@@ -156,9 +174,9 @@ function CustomerFormInner({ onSubmit, initial }, ref) {
         </select>
       </div>
 
-      <div className="pt-1" aria-live="polite">
+      {/* <div className="pt-1" aria-live="polite">
         <Button className={reviewBtnClass}>{reviewLabel}</Button>
-      </div>
+      </div> */}
     </form>
   );
 }

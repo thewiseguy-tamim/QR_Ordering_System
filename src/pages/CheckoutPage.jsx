@@ -14,12 +14,27 @@ const REDIRECT_ONCE_KEY = 'qr_review_redirected_once';
 
 export default function CheckoutPage() {
   const { items, totals, clearCart } = useCart();
-  const [customer, setCustomer] = useState(null); // set on Review or on Submit via ref
+  const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [canSubmit, setCanSubmit] = useState(false);
+  const [animateSubmit, setAnimateSubmit] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
   const formRef = useRef(null);
+
+  // Helper to show animated toast (uses your existing toast API)
+  const showAnimatedToast = (message, type = 'info', ttl = 3000) => {
+    const content = (
+      <div className="qr-toast-anim">
+        <div className="whitespace-pre-line">{message}</div>
+        <div className="qr-toast-progress mt-2">
+          <span style={{ '--ttl': `${ttl}ms` }} />
+        </div>
+      </div>
+    );
+    toast(content, type, ttl);
+  };
 
   // Prefill from session draft when entering the page
   useEffect(() => {
@@ -36,21 +51,31 @@ export default function CheckoutPage() {
     } catch {}
   }, []);
 
-  const handleSubmit = async () => {
-    // Ensure we have valid customer data (from review or from form ref)
-    let cust = customer;
-    if (!cust) {
-      const res = formRef.current?.validateAndGet?.();
-      if (!res || !res.ok) {
-        toast(res?.message || 'Please complete customer info first.', 'error');
-        return;
-      }
-      cust = res.data;
-      setCustomer(cust);
+  // One-time pulse when the button becomes enabled
+  const enabled = canSubmit && items.length > 0 && !loading;
+  const prevEnabledRef = useRef(false);
+  useEffect(() => {
+    if (enabled && !prevEnabledRef.current) {
+      setAnimateSubmit(true);
+      const t = setTimeout(() => setAnimateSubmit(false), 1200);
+      prevEnabledRef.current = enabled; // prevent re-trigger loop
+      return () => clearTimeout(t);
     }
+    prevEnabledRef.current = enabled;
+  }, [enabled]);
+
+  const handleSubmit = async () => {
+    // Always validate before submit
+    const res = formRef.current?.validateAndGet?.();
+    if (!res || !res.ok) {
+      showAnimatedToast(res?.message || 'Please complete customer info first.', 'error', 4500);
+      return;
+    }
+    const cust = res.data;
+    setCustomer(cust);
 
     if (items.length === 0) {
-      toast('Cart is empty.', 'error');
+      toast('Cart is empty.', 'error', 3000);
       return;
     }
 
@@ -78,34 +103,39 @@ export default function CheckoutPage() {
     try {
       setLoading(true);
       await submitOrderToPOS(orderData);
-
-      // Save last order (optional, not part of reset)
       localStorage.setItem('qr_last_order', JSON.stringify(orderData));
 
-      // Reset everything for next order
-      clearCart(); // clears cart + persisted cart
+      clearCart();
       try {
         sessionStorage.removeItem(DRAFT_KEY);
         sessionStorage.removeItem(REDIRECT_ONCE_KEY);
       } catch {}
       setCustomer(null);
 
-      // Show success animation then go to confirmation
       setShowSuccess(true);
       setTimeout(() => {
         navigate(`/confirmation?orderId=${orderData.orderId}`);
       }, 1200);
     } catch (err) {
       console.error(err);
-      toast('Failed to submit order. Please try again.', 'error');
+      showAnimatedToast('Failed to submit order. Please try again.', 'error', 4500);
     } finally {
       setLoading(false);
     }
   };
 
+  // Keep button clickable to show toast even if form is invalid.
+  // Still blocked by validation inside handleSubmit.
+  const clickable = !loading && items.length > 0;
+
   return (
     <div className="p-4 grid gap-4">
-      <CustomerForm ref={formRef} onSubmit={setCustomer} initial={customer} />
+      <CustomerForm
+        ref={formRef}
+        onSubmit={setCustomer}
+        initial={customer}
+        onValidityChange={setCanSubmit}
+      />
 
       <OrderSummary
         items={items}
@@ -115,11 +145,22 @@ export default function CheckoutPage() {
         allowEdit
       />
 
-      <Button onClick={handleSubmit} disabled={loading || items.length === 0}>
-        {loading ? <LoadingSpinner /> : 'Submit Order'}
+      <Button
+        onClick={handleSubmit}
+        disabled={!clickable}
+        className={[
+          'relative select-none',
+          'transition-all duration-200',
+          clickable
+            ? 'hover:scale-[1.02] active:scale-[.98] shadow-md hover:shadow-lg'
+            : 'opacity-60 cursor-not-allowed',
+          animateSubmit ? 'animate-pulse' : ''
+        ].join(' ')}
+      >
+        {loading ? <LoadingSpinner /> : 'Send to Kitchen'}
       </Button>
 
-      {showSuccess && <SuccessOverlay message="Order Completed" />}
+      {showSuccess && <SuccessOverlay message="On your way" />}
     </div>
   );
 }

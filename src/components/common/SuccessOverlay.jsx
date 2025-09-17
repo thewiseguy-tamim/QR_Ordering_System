@@ -21,46 +21,48 @@ export default function SuccessOverlay({ message = 'Order Completed', onDone }) 
         <div className="h-1.5 w-12 bg-slate-300/70 rounded-full mx-auto mt-2 mb-3" />
 
         <div className="px-6 pb-6 pt-1 text-center">
-          {/* Emblem with confetti */}
+          {/* Cooking pan emblem */}
           <div className="relative inline-grid place-items-center w-[120px] h-[120px] mx-auto">
-            {/* Pulsing ring */}
-            <span className="absolute inset-0 rounded-full border-4 border-green-500/30 animate-ring" />
             {/* Outer soft halo */}
-            <span className="absolute inset-[-10px] rounded-full bg-green-500/10" />
-            {/* Confetti bits */}
-            <span className="absolute -left-2 bottom-6 w-2 h-2 rounded-full bg-green-400 animate-confetti-1" />
-            <span className="absolute -right-1 bottom-5 w-1.5 h-4 rounded bg-emerald-500 rotate-45 animate-confetti-2" />
-            <span className="absolute left-3 -top-1 w-2 h-2 rounded-full bg-lime-400 animate-confetti-3" />
-            <span className="absolute right-4 -top-2 w-1.5 h-1.5 rounded-full bg-green-300 animate-confetti-1" />
-            <span className="absolute left-8 top-1 w-1.5 h-1.5 rounded bg-emerald-400 animate-confetti-2" />
+            <span className="absolute inset-[-10px] rounded-full bg-orange-400/10" />
 
-            {/* Center circle + check */}
-            <div className="relative z-10 grid place-items-center w-[92px] h-[92px] rounded-full bg-gradient-to-br from-green-600 to-emerald-600 text-white shadow-lg">
-              <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M7 12.5l3 3 7-7"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  style={{ strokeDasharray: 48, strokeDashoffset: 48 }}
-                  className="animate-check"
-                />
-              </svg>
-            </div>
+            {/* Animated cooking pan */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 64 64"
+              className="w-[92px] h-[92px] text-slate-700"
+            >
+              {/* Pan base */}
+              <rect x="8" y="36" width="40" height="12" rx="2" fill="currentColor" />
+              {/* Handle */}
+              <rect x="48" y="38" width="12" height="8" rx="2" fill="currentColor" />
+              {/* Steam lines */}
+              <path
+                d="M20 20c0 4-2 4-2 8s2 4 2 8"
+                stroke="currentColor"
+                strokeWidth="2"
+                fill="none"
+                className="animate-bounce"
+              />
+              <path
+                d="M28 16c0 4-2 4-2 8s2 4 2 8"
+                stroke="currentColor"
+                strokeWidth="2"
+                fill="none"
+                className="animate-bounce delay-150"
+              />
+              <path
+                d="M36 20c0 4-2 4-2 8s2 4 2 8"
+                stroke="currentColor"
+                strokeWidth="2"
+                fill="none"
+                className="animate-bounce delay-300"
+              />
+            </svg>
           </div>
 
           <div className="mt-3 text-lg font-semibold text-slate-800">{message}</div>
-          <div className="text-slate-500 text-sm">We’re preparing your order 🎉</div>
-
-          {/* Action button (optional) */}
-          <button
-            type="button"
-            onClick={onDone}
-            className="mt-4 w-full py-3 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold shadow-md active:scale-[0.98] transition-transform"
-          >
-            Continue
-          </button>
+          <div className="text-slate-500 text-sm">We’re preparing your order 🍳</div>
         </div>
       </div>
     </div>,
